@@ -1,0 +1,1 @@
+{"id":"int-ce48fcde","kind":"field_change","created_at":"2026-07-01T06:32:24.983191262Z","actor":"sp.shentao.lu","issue_id":"hub-v6p","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"已完成: CLAUDE.md 更新了 Build & Test、Architecture、Conventions 章节; deploy/README.md 写了完整用户文档"}}
