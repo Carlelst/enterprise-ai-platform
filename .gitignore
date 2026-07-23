@@ -3,3 +3,8 @@
 .dolt/
 *.db
 .beads-credential-key
+
+# RAGFlow 部署 snapshot — 含内网凭据的脚本不推
+ragflow-deploy-snapshot/start_fastapi.sh
+ragflow-deploy-snapshot/*.bak
+ragflow-deploy-snapshot/.omc/

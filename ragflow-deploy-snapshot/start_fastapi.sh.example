@@ -1,0 +1,39 @@
+#!/bin/bash
+# EKB FastAPI Proxy 启动脚本（脱敏示例版，真实版见部署机上的 start_fastapi.sh）
+# 与真实版的唯一区别：凭据用占位符，动态获取 PG/Redis IP 的逻辑相同
+set -e
+PORT=${1:-8090}
+WORKERS=${2:-4}
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOG_DIR="$BASE_DIR/logs"
+mkdir -p "$LOG_DIR"
+
+# PG/Redis via Docker bridge IP — 动态获取（容器重建后 IP 会变，不能写死）
+PG_IP=$(docker inspect dify-db_postgres-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null | head -c 15)
+REDIS_IP=$(docker inspect dify-redis-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null | head -c 15)
+if [ -z "$PG_IP" ] || [ -z "$REDIS_IP" ]; then
+  echo "ERROR: 无法获取 PG/Redis 容器 IP（dify-db_postgres-1 / dify-redis-1 是否运行？）" >&2
+  exit 1
+fi
+export DATABASE_URL="${DATABASE_URL:-postgresql+asyncpg://postgres:<PG_PASSWORD>@${PG_IP}:5432/dify}"
+export REDIS_URL="${REDIS_URL:-redis://${REDIS_IP}:6379/2}"
+export RAGFLOW_BASE_URL="${RAGFLOW_BASE_URL:-http://127.0.0.1:8088}"
+export RAGFLOW_API_KEY="${RAGFLOW_API_KEY:-<RAGFLOW_API_KEY>}"
+
+# 熔断器配置（调宽：减少高并发误杀 503）
+export CB_FAIL_THRESHOLD="${CB_FAIL_THRESHOLD:-20}"
+export CB_COOLDOWN_SEC="${CB_COOLDOWN_SEC:-10}"
+export CB_HALF_OPEN_MAX="${CB_HALF_OPEN_MAX:-3}"
+
+echo "  EKB FastAPI Proxy v3.0"
+echo "  Port: $PORT  Workers: $WORKERS"
+echo "  PG: $DATABASE_URL"
+
+fuser -k $PORT/tcp 2>/dev/null || true
+sleep 2
+cd "$BASE_DIR"
+nohup /usr/bin/python3 -m uvicorn app.main:app \
+    --host 0.0.0.0 --port "$PORT" --workers "$WORKERS" --log-level info \
+    > "$LOG_DIR/access.log" 2> "$LOG_DIR/error.log" &
+sleep 3
+fuser $PORT/tcp 2>/dev/null | grep -q . && echo "  ✓ started on $PORT" || echo "  ✗ failed"

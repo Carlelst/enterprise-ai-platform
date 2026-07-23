@@ -1,0 +1,14 @@
+[Unit]
+Description=RAGFlow multi-instance watcher — auto-config nginx LB + 2nd instance on container start
+After=ragflow-dify-proxy.service
+Requires=ragflow-dify-proxy.service
+
+[Service]
+Type=simple
+ExecStart=/home/ai.hse/ragflow-deploy-v2/multi-watcher.sh 2
+Restart=always
+RestartSec=10
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+[Install]
+WantedBy=default.target
